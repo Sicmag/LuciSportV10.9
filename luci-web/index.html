@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LuciSport</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0; color: #222; }
+  main { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+  .card { background: #fff; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
+  label { display: flex; flex-direction: column; font-size: .85rem; color: #555; gap: .25rem; }
+  select, input, button { padding: .5rem .6rem; border-radius: 8px; border: 1px solid #ccc; font-size: .95rem; }
+  button { background: #1f6feb; color: #fff; border: none; cursor: pointer; font-weight: 600; }
+  button:disabled { background: #9bb8e8; cursor: wait; }
+  .partido { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid #eee; }
+  .salida { background: #0d1117; color: #e6edf3; font-family: ui-monospace, Consolas, monospace; font-size: .85rem;
+            padding: 1rem; border-radius: 10px; white-space: pre-wrap; overflow-x: auto; line-height: 1.4; }
+  .c-verde { color: #3fb950; } .c-amarillo { color: #d29922; } .c-rojo { color: #f85149; }
+  .c-azul { color: #58a6ff; } .c-cian { color: #39c5cf; } .b { font-weight: 700; }
+  .err { color: #b42318; font-weight: 600; }
+  .muted { color: #777; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LuciSport</h1>
+  <p class="muted">Análisis estadístico. No es garantía de resultado. Apuesta con responsabilidad.</p>
+
+  <section class="card">
+    <div class="row">
+      <label>Liga
+        <select id="liga">
+          <option value="PL">Premier League</option>
+          <option value="PD">La Liga</option>
+          <option value="SA">Serie A</option>
+          <option value="BL1">Bundesliga</option>
+          <option value="FL1">Ligue 1</option>
+          <option value="DED">Eredivisie</option>
+          <option value="PPL">Primeira Liga</option>
+          <option value="BSA">Brasileirão</option>
+          <option value="ELC">Championship</option>
+          <option value="CL">Champions League</option>
+          <option value="ELI">Europa League</option>
+          <option value="CLI">Libertadores</option>
+          <option value="ALL">Todas las ligas</option>
+        </select>
+      </label>
+      <label>Días a futuro
+        <input id="dias" type="number" value="2" min="0" max="14">
+      </label>
+      <button id="buscar">Buscar partidos</button>
+    </div>
+    <p id="msg" class="muted"></p>
+  </section>
+
+  <section class="card" id="lista" hidden></section>
+  <section id="resultado"></section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function api(url) {
+  const r = await fetch(url);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "Error del servidor");
+  return d;
+}
+
+$("buscar").onclick = async () => {
+  $("msg").textContent = "Buscando partidos...";
+  $("lista").hidden = true;
+  $("resultado").innerHTML = "";
+  try {
+    const d = await api(`/api/partidos?liga=${$("liga").value}&dias=${$("dias").value}`);
+    if (!d.partidos.length) { $("msg").textContent = "No hay partidos en ese rango."; return; }
+    $("msg").textContent = `${d.partidos.length} partidos encontrados. Elige uno para analizarlo.`;
+    $("lista").innerHTML = d.partidos.map((p) =>
+      `<div class="partido"><span>${esc(p.label)}</span>
+       <button data-id="${p.id}" data-liga="${p.league_code}">Analizar</button></div>`).join("");
+    $("lista").hidden = false;
+  } catch (e) {
+    $("msg").innerHTML = `<span class="err">${esc(e.message)}</span>`;
+  }
+};
+
+$("lista").onclick = async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  document.querySelectorAll("#lista button").forEach((x) => (x.disabled = true));
+  $("resultado").innerHTML = `<p class="muted">Analizando... puede tardar entre 5 y 30 segundos.</p>`;
+  try {
+    const d = await api(`/api/analizar?id=${b.dataset.id}&liga=${b.dataset.liga}`);
+    $("resultado").innerHTML = `<section class="card"><h2>${esc(d.match)}</h2></section>
+                                <div class="salida">${d.html}</div>`;
+  } catch (err) {
+    $("resultado").innerHTML = `<p class="err">${esc(err.message)}</p>`;
+  } finally {
+    document.querySelectorAll("#lista button").forEach((x) => (x.disabled = false));
+  }
+};
+</script>
+</body>
+</html>
