@@ -9,7 +9,7 @@ import difflib  # Para comparar nombres de equipos (The Odds API)
 
 # ---------- CONFIGURACIÓN ----------
 API_KEY_FOOTBALL = "1e5c3ffbc5bb41c7a564388729255308"  # Football-Data.org
-API_KEY_ODDS = os.getenv("ODDS_API_KEY", "4717a35d0881dfe407379ce367a992a6")       # Opcional, para cuotas reales
+API_KEY_ODDS = os.getenv("ODDS_API_KEY", "TU_API_KEY_DE_THE_ODDS_API_AQUI")       # Opcional, para cuotas reales
 HEADERS = {'X-Auth-Token': API_KEY_FOOTBALL}
 
 # --- CONFIGURACIÓN TELEGRAM ---
@@ -21,10 +21,11 @@ G, Y, R, B, C, W = '\033[92m', '\033[93m', '\033[91m', '\033[94m', '\033[96m', '
 BOLD = '\033[1m'
 
 # --- FILTRO DE RECOMENDACIONES ---
-REC_PROB_MIN = 66          # probabilidad mínima (%)
-REC_PROB_MAX = 100          # probabilidad máxima (%)
+REC_PROB_MIN = 60          # probabilidad mínima (%)
+REC_PROB_MAX = 70          # probabilidad máxima (%)
 REC_ODD_MIN = 1.40         # cuota mínima (real si existe, justa si no)
 MERCADOS_HEURISTICOS = ("Córners", "Tarjetas", "Tiros", "Remates")  # sin datos reales
+INCLUIR_HEURISTICOS = False  # True para incluir córners/tarjetas/tiros en los picks
 
 # Recomendaciones del último análisis (la usa la web para los picks)
 ULTIMAS_RECOMENDACIONES = []
@@ -41,7 +42,7 @@ def to_odds(p):
 
 def cumple_recomendacion(nombre, prob, odd_real=0):
     """True si el pick está entre REC_PROB_MIN y REC_PROB_MAX y su cuota es >= REC_ODD_MIN."""
-    if any(x in nombre for x in MERCADOS_HEURISTICOS):
+    if not INCLUIR_HEURISTICOS and any(x in nombre for x in MERCADOS_HEURISTICOS):
         return False
     if not (REC_PROB_MIN <= prob <= REC_PROB_MAX):
         return False

@@ -106,28 +106,44 @@ def analizar(match_id, cid):
     }
 
 
-def picks(match_id, cid):
-    """Picks del partido que cumplen el filtro (sin mercados heurísticos)."""
-    r = _obtener_partido(match_id, cid)
-    h, a = r["homeTeam"], r["awayTeam"]
-    h_s = luci.get_deep_data_v2(h["id"])
-    a_s = luci.get_deep_data_v2(a["id"])
+def categoria(nombre):
+    """Agrupa un pick por tipo de mercado para mostrarlo ordenado en la web."""
+    if "Córners" in nombre:
+        return "Córners"
+    if "Tarjetas" in nombre:
+        return "Tarjetas"
+    if "Tiros" in nombre or "Remates" in nombre:
+        return "Tiros y remates"
+    if "Goles" in nombre or nombre.startswith(("Más de", "Menos de", "Ambos")):
+        return "Goles"
+    if nombre.startswith(("Gana ", "1X ", "X2 ")):
+        return "Resultado"
+    return "Otros"
 
-    # Temporalmente quitamos el tope de recomendaciones para no perder picks de 66-70%
+
+def picks(match_id, cid):
+    """Picks del partido: solo recomendaciones que cumplen el filtro (prob. 60-70%, cuota >= 1.40)."""
+    r = _obtener_partido(match_id, cid)
     tope_original = luci.MAX_RECS_V2
-    luci.MAX_RECS_V2 = 1000
+    luci.MAX_RECS_V2 = 1000  # que el tope V2 no oculte picks válidos
     try:
         with contextlib.redirect_stdout(io.StringIO()):
-            recs = luci.bloque_v2_mercados(h["name"], a["name"], h_s, a_s)
+            luci.analizar_titan(r)
     finally:
         luci.MAX_RECS_V2 = tope_original
 
     seleccion = []
-    for nombre, prob in recs:
-        if luci.cumple_recomendacion(nombre, prob):
-            seleccion.append({"nombre": nombre, "prob": prob, "odd": luci.to_odds(prob)})
+    for rec in luci.ULTIMAS_RECOMENDACIONES:
+        real = rec.get("odd_real", 0)
+        seleccion.append({
+            "nombre": rec["nombre"],
+            "mercado": categoria(rec["nombre"]),
+            "prob": rec["prob"],
+            "odd": real if real > 0 else rec["odd_calc"],
+            "fuente": "real" if real > 0 else "justa",
+        })
     return {
-        "partido": f"{h['name']} vs {a['name']}",
+        "partido": f"{r['homeTeam']['name']} vs {r['awayTeam']['name']}",
         "utcDate": r.get("utcDate", ""),
         "picks": sorted(seleccion, key=lambda x: x["prob"], reverse=True),
     }

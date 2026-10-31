@@ -2,40 +2,98 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>LuciSport</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0; color: #222; }
-  main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-  .card { background: #fff; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; align-items: start; }
-  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
-  .reto { position: sticky; top: 1rem; }
-  .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
-  label { display: flex; flex-direction: column; font-size: .85rem; color: #555; gap: .25rem; }
-  select, input, button { padding: .5rem .6rem; border-radius: 8px; border: 1px solid #ccc; font-size: .95rem; }
-  button { background: #1f6feb; color: #fff; border: none; cursor: pointer; font-weight: 600; }
-  button:disabled { background: #9bb8e8; cursor: not-allowed; }
-  button.sec { background: #eef2f7; color: #222; border: 1px solid #ccc; }
-  .partido, .pick, .paso { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid #eee; }
-  .salida { background: #0d1117; color: #e6edf3; font-family: ui-monospace, Consolas, monospace; font-size: .85rem;
-            padding: 1rem; border-radius: 10px; white-space: pre-wrap; overflow-x: auto; line-height: 1.4; }
-  .c-verde { color: #3fb950; } .c-amarillo { color: #d29922; } .c-rojo { color: #f85149; }
-  .c-azul { color: #58a6ff; } .c-cian { color: #39c5cf; } .b { font-weight: 700; }
-  .err { color: #b42318; font-weight: 600; }
-  .ok { color: #0a7d32; font-weight: 600; }
-  .muted { color: #777; font-size: .9rem; }
-  .totales { font-size: 1.05rem; margin: .75rem 0; }
-  small { color: #666; }
+  :root {
+    --bg: #f3f5f9; --card: #ffffff; --texto: #1c2430; --suave: #6b7480;
+    --azul: #2563eb; --verde: #15803d; --ambar: #b45309; --borde: #e5e9f0; --radio: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--texto); -webkit-text-size-adjust: 100%; }
+  header { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; padding: 1.25rem 1rem; }
+  header h1 { margin: 0; font-size: 1.5rem; }
+  header p { margin: .25rem 0 0; opacity: .9; font-size: .85rem; }
+  main { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+  .card { background: var(--card); border: 1px solid var(--borde); border-radius: var(--radio);
+          padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .controles { display: grid; grid-template-columns: 1fr 110px auto; gap: .6rem; align-items: end; }
+  label { display: flex; flex-direction: column; font-size: .8rem; color: var(--suave); gap: .3rem; }
+  select, input, button { font: inherit; min-height: 44px; padding: .6rem .7rem; border-radius: 10px;
+                          border: 1px solid var(--borde); background: #fff; color: var(--texto); }
+  button { cursor: pointer; background: var(--azul); color: #fff; border: none; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.sec { background: #eef2ff; color: var(--azul); }
+  button.peq { min-height: 36px; padding: .35rem .6rem; font-size: .85rem; width: 100%; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1rem; align-items: start; }
+  .sticky { position: sticky; top: 1rem; }
+  .partido { display: flex; justify-content: space-between; align-items: center; gap: .75rem;
+             padding: .7rem 0; border-bottom: 1px solid var(--borde); }
+  .partido:last-child { border-bottom: none; }
+  .nombres { font-weight: 600; line-height: 1.3; }
+  .fecha { font-size: .8rem; color: var(--suave); }
+  .vivo { background: #fee2e2; color: #b91c1c; font-size: .72rem; padding: .1rem .45rem; border-radius: 999px; margin-right: .3rem; }
+  .partido-head h2 { margin: 0 0 .2rem; font-size: 1.2rem; }
+  .regla { font-size: .85rem; color: var(--suave); margin: 0 0 .75rem; }
+  .grupo h3 { font-size: .8rem; margin: 1.1rem 0 .5rem; color: var(--suave); text-transform: uppercase; letter-spacing: .05em; }
+  .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .6rem; }
+  .pick { border: 1px solid var(--borde); border-radius: 12px; padding: .75rem; display: flex; flex-direction: column; gap: .5rem; }
+  .pick-top { display: flex; justify-content: space-between; gap: .5rem; align-items: flex-start; }
+  .pick-nombre { font-weight: 600; font-size: .92rem; line-height: 1.25; word-break: break-word; }
+  .cuota { background: #ecfdf5; color: var(--verde); font-weight: 700; border-radius: 8px; padding: .2rem .5rem; white-space: nowrap; }
+  .barra { height: 8px; background: #eef0f4; border-radius: 999px; overflow: hidden; }
+  .barra > div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #60a5fa, #2563eb); }
+  .pick.p60 .barra > div { background: linear-gradient(90deg, #fcd34d, #d97706); }
+  .pick.p70 .barra > div { background: linear-gradient(90deg, #86efac, #16a34a); }
+  .pick-bot { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: .8rem; color: var(--suave); }
+  .tag { font-size: .7rem; padding: .1rem .4rem; border-radius: 6px; background: #f1f5f9; }
+  .tag.real { background: #dcfce7; color: #166534; }
+  .err { color: #b91c1c; font-weight: 600; }
+  .ok { color: #15803d; font-weight: 600; }
+  .muted { color: var(--suave); font-size: .9rem; }
+  .paso { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--borde); font-size: .9rem; }
+  .resumen { display: flex; gap: .5rem; flex-wrap: wrap; margin: .6rem 0; font-size: .9rem; }
+  .resumen span { background: #f1f5f9; padding: .3rem .6rem; border-radius: 8px; }
+  .guardado { border: 1px solid var(--borde); border-radius: 12px; padding: .7rem; margin: .5rem 0; font-size: .9rem; }
+  .acciones { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .5rem; }
+  .acciones button { flex: 1; min-width: 90px; }
+  footer { text-align: center; color: var(--suave); font-size: .8rem; padding: 1rem; }
+
+  /* Tablet */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sticky { position: static; }
+    .picks { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  }
+  /* Teléfono */
+  @media (max-width: 600px) {
+    header { padding: 1rem; }
+    header h1 { font-size: 1.3rem; }
+    main { padding: .6rem; }
+    .card { padding: .85rem; }
+    .controles { grid-template-columns: 1fr 1fr; }
+    .controles > label:first-child { grid-column: 1 / -1; }
+    .controles > button { grid-column: 1 / -1; }
+    .picks { grid-template-columns: 1fr; }
+    .partido { flex-direction: column; align-items: stretch; }
+    .partido button { width: 100%; }
+    .partido-head h2 { font-size: 1.05rem; }
+  }
+  @media (max-width: 380px) {
+    .controles { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>LuciSport</h1>
-  <p class="muted">Análisis estadístico. No es garantía de resultado. Apuesta con responsabilidad.</p>
+<header>
+  <h1>⚽ LuciSport</h1>
+  <p>Picks con probabilidad 60–70% y cuota de al menos 1.40</p>
+</header>
 
+<main>
   <section class="card">
-    <div class="row">
+    <div class="controles">
       <label>Liga
         <select id="liga">
           <option value="PL">Premier League</option>
@@ -53,22 +111,22 @@
           <option value="ALL">Todas las ligas</option>
         </select>
       </label>
-      <label>Días a futuro
-        <input id="dias" type="number" value="2" min="0" max="14">
+      <label>Días
+        <input id="dias" type="number" value="2" min="0" max="14" inputmode="numeric">
       </label>
       <button id="buscar">Buscar partidos</button>
     </div>
     <p id="msg" class="muted"></p>
   </section>
 
-  <div class="grid">
+  <div class="layout">
     <div>
       <section class="card" id="lista" hidden></section>
-      <section id="analisis"></section>
+      <section class="card" id="detalle" hidden></section>
     </div>
 
-    <aside class="card reto">
-      <h2>Reto escalera</h2>
+    <aside class="card sticky">
+      <h2 style="margin-top:0">Reto escalera</h2>
       <label>Número de pasos
         <select id="pasos">
           <option value="2">2</option>
@@ -78,11 +136,11 @@
           <option value="6">6</option>
         </select>
       </label>
-      <p class="muted">Cada paso debe ser de un partido distinto y empezar con al menos 2 horas de diferencia respecto a los demás.</p>
+      <p class="muted">Cada paso es de un partido distinto, con al menos 2 horas de diferencia.</p>
       <div id="pasosLista"></div>
-      <p class="totales" id="totales"></p>
-      <p id="retoMsg" class="err"></p>
-      <button id="guardar" disabled>Guardar reto</button>
+      <div class="resumen" id="totales"></div>
+      <p id="retoMsg" class="muted"></p>
+      <button id="guardar" disabled style="width:100%">Guardar reto</button>
 
       <h3>Retos guardados</h3>
       <div id="guardados"><p class="muted">Aún no tienes retos guardados.</p></div>
@@ -90,15 +148,17 @@
   </div>
 </main>
 
+<footer>Estimaciones estadísticas. No garantizan resultados. Apuesta con responsabilidad.</footer>
+
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const KEY = "luci_retos";
 const SEPARACION_MS = 2 * 60 * 60 * 1000;
 
-let partidos = {};        // id -> datos del partido
-let picksPorPartido = {}; // id -> picks que cumplen el filtro
-let reto = [];            // pasos del reto en construcción
+let partidos = {};
+let picksPorPartido = {};
+let reto = [];
 
 async function api(url) {
   const r = await fetch(url);
@@ -114,55 +174,86 @@ const mensaje = (texto, tipo = "err") => { $("retoMsg").className = tipo; $("ret
 $("buscar").onclick = async () => {
   $("msg").textContent = "Buscando partidos...";
   $("lista").hidden = true;
+  $("detalle").hidden = true;
   try {
     const d = await api(`/api/luci?r=partidos&liga=${$("liga").value}&dias=${$("dias").value}`);
     if (!d.partidos.length) { $("msg").textContent = "No hay partidos en ese rango."; return; }
     partidos = {};
     d.partidos.forEach((p) => (partidos[p.id] = p));
-    $("msg").textContent = `${d.partidos.length} partidos. Elige uno para ver sus picks.`;
-    $("lista").innerHTML = d.partidos.map((p) =>
-      `<div class="partido"><span>${esc(p.label)}</span>
-       <button data-id="${p.id}" data-liga="${p.league_code}">Analizar</button></div>`).join("");
+    $("msg").textContent = `${d.partidos.length} partidos. Toca uno para ver sus picks.`;
+    $("lista").innerHTML = `<h2 style="margin-top:0">Partidos</h2>` + d.partidos.map((p) =>
+      `<div class="partido">
+         <div>
+           <div class="nombres">${p.label.includes("[LIVE]") ? '<span class="vivo">EN VIVO</span>' : ""}${esc(p.label.replace(/\s*\(.*\)$/, "").replace("[PRE] ", "").replace("[LIVE] ", ""))}</div>
+           <div class="fecha">${esc(fechaLocal(p.utcDate))}</div>
+         </div>
+         <button data-id="${p.id}" data-liga="${p.league_code}">Ver picks</button>
+       </div>`).join("");
     $("lista").hidden = false;
   } catch (e) {
     $("msg").innerHTML = `<span class="err">${esc(e.message)}</span>`;
   }
 };
 
-// ---------- Analizar un partido ----------
+// ---------- Picks de un partido ----------
 $("lista").onclick = async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   const id = b.dataset.id, liga = b.dataset.liga;
-  $("analisis").innerHTML = `<p class="muted">Analizando... puede tardar entre 10 y 40 segundos.</p>`;
+  $("detalle").hidden = false;
+  $("detalle").innerHTML = `<p class="muted">Calculando picks... puede tardar entre 10 y 40 segundos.</p>`;
   document.querySelectorAll("#lista button").forEach((x) => (x.disabled = true));
   try {
     const p = await api(`/api/luci?r=picks&id=${id}&liga=${liga}`);
-    const a = await api(`/api/luci?r=analizar&id=${id}&liga=${liga}`);
     picksPorPartido[id] = p.picks.map((x) => ({ ...x, match_id: Number(id), partido: p.partido, utcDate: p.utcDate }));
-    $("analisis").innerHTML = `
-      <section class="card">
-        <h2>${esc(a.match)}</h2>
-        <h3>Picks (66–70% y cuota ≥ 1.50)</h3>
-        ${renderPicks(id)}
-      </section>
-      <details class="card"><summary>Ver análisis completo</summary><div class="salida">${a.html}</div></details>`;
+    $("detalle").innerHTML = renderPicks(id, p.partido, p.utcDate);
+    $("detalle").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
-    $("analisis").innerHTML = `<p class="err">${esc(err.message)}</p>`;
+    $("detalle").innerHTML = `<p class="err">${esc(err.message)}</p>`;
   } finally {
     document.querySelectorAll("#lista button").forEach((x) => (x.disabled = false));
   }
 };
 
-function renderPicks(id) {
+function renderPicks(id, partido, utc) {
   const lista = picksPorPartido[id] || [];
-  if (!lista.length) return `<p class="muted">Ningún pick cumple el filtro en este partido.</p>`;
-  return lista.map((p, i) =>
-    `<div class="pick"><span>${esc(p.nombre)} · <b>${p.prob}%</b> · cuota ${p.odd}</span>
-     <button class="sec" data-add="${id}|${i}">Agregar al reto</button></div>`).join("");
+  const orden = ["Resultado", "Goles", "Córners", "Tarjetas", "Tiros y remates", "Otros"];
+  const grupos = {};
+  lista.forEach((p, i) => { (grupos[p.mercado] = grupos[p.mercado] || []).push({ ...p, i }); });
+
+  const cuerpo = lista.length
+    ? orden.filter((g) => grupos[g]).map((g) => `
+        <div class="grupo"><h3>${g}</h3>
+          <div class="picks">${grupos[g].map((p) => pickHtml(id, p)).join("")}</div>
+        </div>`).join("")
+    : `<p class="muted">Ningún pick cumple el filtro en este partido.</p>`;
+
+  return `<div class="partido-head">
+            <h2>${esc(partido)}</h2>
+            <div class="fecha">${esc(fechaLocal(utc))} · ${lista.length} picks</div>
+          </div>
+          <p class="regla">Filtro: probabilidad 60–70% y cuota ≥ 1.40</p>
+          ${cuerpo}`;
 }
 
-$("analisis").onclick = (e) => {
+function pickHtml(id, p) {
+  const clase = p.prob >= 68 ? "p70" : p.prob >= 64 ? "p65" : "p60";
+  const etiqueta = p.fuente === "real" ? "cuota real" : "cuota justa";
+  return `<div class="pick ${clase}">
+    <div class="pick-top">
+      <span class="pick-nombre">${esc(p.nombre)}</span>
+      <span class="cuota">${p.odd}</span>
+    </div>
+    <div class="barra"><div style="width:${p.prob}%"></div></div>
+    <div class="pick-bot">
+      <span><b>${p.prob}%</b> prob.</span>
+      <span class="tag ${p.fuente === "real" ? "real" : ""}">${etiqueta}</span>
+    </div>
+    <button class="sec peq" data-add="${id}|${p.i}">+ Agregar al reto</button>
+  </div>`;
+}
+
+$("detalle").onclick = (e) => {
   const b = e.target.closest("button[data-add]");
   if (!b) return;
   const [id, idx] = b.dataset.add.split("|");
@@ -177,14 +268,9 @@ function agregarPaso(id, idx) {
   if (reto.some((x) => x.match_id === p.match_id)) return mensaje("Ese partido ya está en el reto.");
   const t = new Date(p.utcDate).getTime();
   const choque = reto.find((x) => Math.abs(new Date(x.utcDate).getTime() - t) < SEPARACION_MS);
-  if (choque) return mensaje(`Se juega muy cerca de ${choque.partido} (menos de 2 horas). Elige otro horario.`);
+  if (choque) return mensaje(`Se juega muy cerca de ${choque.partido} (menos de 2 horas).`);
   reto.push(p);
   mensaje("");
-  renderReto();
-}
-
-function quitarPaso(i) {
-  reto.splice(i, 1);
   renderReto();
 }
 
@@ -197,22 +283,25 @@ function totalesReto() {
 function renderReto() {
   const limite = Number($("pasos").value);
   $("pasosLista").innerHTML = reto.length
-    ? reto.map((x, i) =>
-        `<div class="paso"><span><b>Paso ${i + 1}:</b> ${esc(x.partido)}<br>
-         <small>${esc(x.nombre)} · ${x.prob}% · cuota ${x.odd} · ${fechaLocal(x.utcDate)}</small></span>
-         <button class="sec" data-quitar="${i}">Quitar</button></div>`).join("")
+    ? reto.map((x, i) => `
+        <div class="paso">
+          <span><b>${i + 1}.</b> ${esc(x.partido)}<br><small class="muted">${esc(x.nombre)} · ${x.prob}% · ${x.odd}</small></span>
+          <button class="sec peq" style="width:auto" data-quitar="${i}">✕</button>
+        </div>`).join("")
     : `<p class="muted">Aún no agregas pasos.</p>`;
 
   const { prob, cuota } = totalesReto();
   $("totales").innerHTML = reto.length
-    ? `Pasos: ${reto.length}/${limite} · Probabilidad combinada: <b>${prob.toFixed(1)}%</b> · Cuota total: <b>${cuota.toFixed(2)}</b>`
+    ? `<span>Pasos ${reto.length}/${limite}</span><span>Prob. ${prob.toFixed(1)}%</span><span>Cuota ${cuota.toFixed(2)}</span>`
     : "";
   $("guardar").disabled = reto.length !== limite;
 }
 
 $("pasosLista").onclick = (e) => {
   const b = e.target.closest("button[data-quitar]");
-  if (b) quitarPaso(Number(b.dataset.quitar));
+  if (!b) return;
+  reto.splice(Number(b.dataset.quitar), 1);
+  renderReto();
 };
 
 $("pasos").onchange = () => {
@@ -249,14 +338,14 @@ function renderGuardados() {
     return;
   }
   $("guardados").innerHTML = lista.map((r) => `
-    <div class="card" style="box-shadow:none;border:1px solid #eee;margin:.5rem 0">
-      <div><small>${esc(r.fecha)}</small> · <b>${esc(r.estado)}</b></div>
-      <div>${r.pasos.map((p, i) => `${i + 1}. ${esc(p.partido)} (${esc(p.nombre)})`).join("<br>")}</div>
-      <div class="totales">Prob. ${r.prob}% · Cuota ${r.cuota}</div>
-      <div class="row">
-        <button class="sec" data-acc="${r.id}|ganado">Ganado</button>
-        <button class="sec" data-acc="${r.id}|perdido">Perdido</button>
-        <button class="sec" data-acc="${r.id}|eliminar">Eliminar</button>
+    <div class="guardado">
+      <div class="fecha">${esc(r.fecha)} · <b>${esc(r.estado)}</b></div>
+      <div style="margin:.4rem 0">${r.pasos.map((p, i) => `${i + 1}. ${esc(p.partido)} (${esc(p.nombre)})`).join("<br>")}</div>
+      <div class="resumen"><span>Prob. ${r.prob}%</span><span>Cuota ${r.cuota}</span></div>
+      <div class="acciones">
+        <button class="sec peq" data-acc="${r.id}|ganado">Ganado</button>
+        <button class="sec peq" data-acc="${r.id}|perdido">Perdido</button>
+        <button class="sec peq" data-acc="${r.id}|eliminar">Eliminar</button>
       </div>
     </div>`).join("");
 }
