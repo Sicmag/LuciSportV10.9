@@ -1,3 +1,5 @@
+import os
+import re
 import requests
 import time
 import math
@@ -7,7 +9,7 @@ import difflib  # Para comparar nombres de equipos (The Odds API)
 
 # ---------- CONFIGURACIÓN ----------
 API_KEY_FOOTBALL = "1e5c3ffbc5bb41c7a564388729255308"  # Football-Data.org
-API_KEY_ODDS = "TU_API_KEY_DE_THE_ODDS_API_AQUI"       # Opcional, para cuotas reales
+API_KEY_ODDS = os.getenv("ODDS_API_KEY", "4717a35d0881dfe407379ce367a992a6")       # Opcional, para cuotas reales
 HEADERS = {'X-Auth-Token': API_KEY_FOOTBALL}
 
 # --- CONFIGURACIÓN TELEGRAM ---
@@ -20,9 +22,12 @@ BOLD = '\033[1m'
 
 # --- FILTRO DE RECOMENDACIONES ---
 REC_PROB_MIN = 66          # probabilidad mínima (%)
-REC_PROB_MAX = 70          # probabilidad máxima (%)
-REC_ODD_MIN = 1.50         # cuota mínima (real si existe, justa si no)
+REC_PROB_MAX = 100          # probabilidad máxima (%)
+REC_ODD_MIN = 1.40         # cuota mínima (real si existe, justa si no)
 MERCADOS_HEURISTICOS = ("Córners", "Tarjetas", "Tiros", "Remates")  # sin datos reales
+
+# Recomendaciones del último análisis (la usa la web para los picks)
+ULTIMAS_RECOMENDACIONES = []
 
 # ---------- UTILIDADES ----------
 def color_prob(p):
@@ -98,12 +103,16 @@ ODDS_MAP = {
 }
 
 def get_live_odds(sport_key, home_team, away_team):
-    """Obtiene cuotas reales 1X2 desde The Odds API (si está configurada)."""
-    if "TU_API_KEY" in API_KEY_ODDS:
+    """Mejores cuotas reales desde The Odds API: 1X2 ('1', 'X', '2') y totales ('O2.5', 'U2.5', ...).
+    Toma la mejor cuota entre todas las casas disponibles. Devuelve dict o None."""
+    if not API_KEY_ODDS or "TU_API_KEY" in API_KEY_ODDS:
         return None
-    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={API_KEY_ODDS}&regions=eu&markets=h2h&oddsFormat=decimal"
+    url = (f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
+           f"?apiKey={API_KEY_ODDS}&regions=eu&markets=h2h,totals&oddsFormat=decimal")
     try:
         data = requests.get(url, timeout=10).json()
+        if not isinstance(data, list):
+            return None
         best_match = None
         highest_ratio = 0
         for event in data:
@@ -113,20 +122,45 @@ def get_live_odds(sport_key, home_team, away_team):
             if avg > highest_ratio and avg > 0.55:
                 highest_ratio = avg
                 best_match = event
-        if best_match:
-            outcomes = best_match['bookmakers'][0]['markets'][0]['outcomes']
-            odds = {}
-            for o in outcomes:
-                if o['name'] == best_match['home_team']:
-                    odds['1'] = o['price']
-                elif o['name'] == best_match['away_team']:
-                    odds['2'] = o['price']
-                else:
-                    odds['X'] = o['price']
-            return odds
-    except:
-        pass
-    return None
+        if not best_match:
+            return None
+        odds = {}
+        for bk in best_match.get('bookmakers', []):
+            for mk in bk.get('markets', []):
+                if mk['key'] == 'h2h':
+                    for o in mk['outcomes']:
+                        if o['name'] == best_match['home_team']:
+                            clave = '1'
+                        elif o['name'] == best_match['away_team']:
+                            clave = '2'
+                        else:
+                            clave = 'X'
+                        odds[clave] = max(odds.get(clave, 0), o['price'])
+                elif mk['key'] == 'totals':
+                    for o in mk['outcomes']:
+                        if o.get('point') is None:
+                            continue
+                        lado = 'O' if o['name'] == 'Over' else 'U'
+                        clave = f"{lado}{float(o['point'])}"
+                        odds[clave] = max(odds.get(clave, 0), o['price'])
+        return odds or None
+    except Exception:
+        return None
+
+def cuota_real_para(nombre, h_n, a_n, odds):
+    """Cuota real (0 si no existe) para el nombre de una recomendación."""
+    if not odds:
+        return 0
+    fijos = {f"Gana {h_n}": '1', f"Gana {a_n}": '2',
+             "Más de 1.5 Goles": 'O1.5', "Más de 2.5 Goles": 'O2.5',
+             "Menos de 3.5 Goles": 'U3.5'}
+    if nombre in fijos:
+        return odds.get(fijos[nombre], 0)
+    m = re.match(r"Goles total (Más|Menos) de ([0-9.]+)$", nombre)
+    if m:
+        clave = ('O' if m.group(1) == "Más" else 'U') + str(float(m.group(2)))
+        return odds.get(clave, 0)
+    return 0
 
 # ---------- LISTA DE LIGAS ----------
 LIGAS = {
@@ -176,7 +210,7 @@ def extraer_picks_gold(match):
     picks = []
     for nombre, prob in posibles:
         odd = to_odds(prob)
-        if prob >= 60 and odd >= 1.40:
+        if prob >= 60 and odd >= 1.50:
             picks.append({"n": nombre, "p": prob, "o": odd, "c": "Goles" if "Goles" in nombre else "1X2/DC"})
     return picks
 
@@ -213,6 +247,8 @@ def analizar_titan(match):
     recomendaciones = []
 
     def agregar_recomendacion(nombre, prob, odd_real=0):
+        if odd_real == 0:
+            odd_real = cuota_real_para(nombre, h_n, a_n, real_odds)
         if not cumple_recomendacion(nombre, prob, odd_real):
             return
         odd_calc = to_odds(prob)
@@ -340,6 +376,7 @@ def analizar_titan(match):
     else:
         msg += "Sin recomendaciones.\n"
     msg += f"\n🤖 _Análisis generado por LuciSport_"
+    ULTIMAS_RECOMENDACIONES[:] = recomendaciones
     enviar_a_telegram(msg)
 
 
@@ -566,7 +603,6 @@ def backtest_v2(cid, n_partidos=40):
     print(f"  Brier 1X2: {brier / evaluados:.4f}  (azar = 0.6667, menor es mejor)")
     print(f"  Log-loss : {ll / evaluados:.4f}  (azar = 1.0986)")
     print(f"  Acierto del favorito: {aciertos / evaluados:.1%}")
-
 # ---------- PROGRAMA PRINCIPAL ----------
 def main():
     while True:
