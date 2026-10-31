@@ -176,7 +176,7 @@ def extraer_picks_gold(match):
     picks = []
     for nombre, prob in posibles:
         odd = to_odds(prob)
-        if prob >= 60 and odd >= 1.50:
+        if prob >= 60 and odd >= 1.40:
             picks.append({"n": nombre, "p": prob, "o": odd, "c": "Goles" if "Goles" in nombre else "1X2/DC"})
     return picks
 
