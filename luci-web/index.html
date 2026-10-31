@@ -74,7 +74,7 @@ $("buscar").onclick = async () => {
   $("lista").hidden = true;
   $("resultado").innerHTML = "";
   try {
-    const d = await api(`/api/partidos?liga=${$("liga").value}&dias=${$("dias").value}`);
+    const d = await api(`/api/luci?r=partidos&liga=${$("liga").value}&dias=${$("dias").value}`);
     if (!d.partidos.length) { $("msg").textContent = "No hay partidos en ese rango."; return; }
     $("msg").textContent = `${d.partidos.length} partidos encontrados. Elige uno para analizarlo.`;
     $("lista").innerHTML = d.partidos.map((p) =>
@@ -92,7 +92,7 @@ $("lista").onclick = async (e) => {
   document.querySelectorAll("#lista button").forEach((x) => (x.disabled = true));
   $("resultado").innerHTML = `<p class="muted">Analizando... puede tardar entre 5 y 30 segundos.</p>`;
   try {
-    const d = await api(`/api/analizar?id=${b.dataset.id}&liga=${b.dataset.liga}`);
+    const d = await api(`/api/luci?r=analizar&id=${b.dataset.id}&liga=${b.dataset.liga}`);
     $("resultado").innerHTML = `<section class="card"><h2>${esc(d.match)}</h2></section>
                                 <div class="salida">${d.html}</div>`;
   } catch (err) {
