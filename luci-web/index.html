@@ -6,20 +6,27 @@
 <title>LuciSport</title>
 <style>
   body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0; color: #222; }
-  main { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+  main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
   .card { background: #fff; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .reto { position: sticky; top: 1rem; }
   .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
   label { display: flex; flex-direction: column; font-size: .85rem; color: #555; gap: .25rem; }
   select, input, button { padding: .5rem .6rem; border-radius: 8px; border: 1px solid #ccc; font-size: .95rem; }
   button { background: #1f6feb; color: #fff; border: none; cursor: pointer; font-weight: 600; }
-  button:disabled { background: #9bb8e8; cursor: wait; }
-  .partido { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid #eee; }
+  button:disabled { background: #9bb8e8; cursor: not-allowed; }
+  button.sec { background: #eef2f7; color: #222; border: 1px solid #ccc; }
+  .partido, .pick, .paso { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid #eee; }
   .salida { background: #0d1117; color: #e6edf3; font-family: ui-monospace, Consolas, monospace; font-size: .85rem;
             padding: 1rem; border-radius: 10px; white-space: pre-wrap; overflow-x: auto; line-height: 1.4; }
   .c-verde { color: #3fb950; } .c-amarillo { color: #d29922; } .c-rojo { color: #f85149; }
   .c-azul { color: #58a6ff; } .c-cian { color: #39c5cf; } .b { font-weight: 700; }
   .err { color: #b42318; font-weight: 600; }
-  .muted { color: #777; }
+  .ok { color: #0a7d32; font-weight: 600; }
+  .muted { color: #777; font-size: .9rem; }
+  .totales { font-size: 1.05rem; margin: .75rem 0; }
+  small { color: #666; }
 </style>
 </head>
 <body>
@@ -54,13 +61,44 @@
     <p id="msg" class="muted"></p>
   </section>
 
-  <section class="card" id="lista" hidden></section>
-  <section id="resultado"></section>
+  <div class="grid">
+    <div>
+      <section class="card" id="lista" hidden></section>
+      <section id="analisis"></section>
+    </div>
+
+    <aside class="card reto">
+      <h2>Reto escalera</h2>
+      <label>Número de pasos
+        <select id="pasos">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </label>
+      <p class="muted">Cada paso debe ser de un partido distinto y empezar con al menos 2 horas de diferencia respecto a los demás.</p>
+      <div id="pasosLista"></div>
+      <p class="totales" id="totales"></p>
+      <p id="retoMsg" class="err"></p>
+      <button id="guardar" disabled>Guardar reto</button>
+
+      <h3>Retos guardados</h3>
+      <div id="guardados"><p class="muted">Aún no tienes retos guardados.</p></div>
+    </aside>
+  </div>
 </main>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const KEY = "luci_retos";
+const SEPARACION_MS = 2 * 60 * 60 * 1000;
+
+let partidos = {};        // id -> datos del partido
+let picksPorPartido = {}; // id -> picks que cumplen el filtro
+let reto = [];            // pasos del reto en construcción
 
 async function api(url) {
   const r = await fetch(url);
@@ -69,14 +107,19 @@ async function api(url) {
   return d;
 }
 
+const fechaLocal = (iso) => new Date(iso).toLocaleString("es", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+const mensaje = (texto, tipo = "err") => { $("retoMsg").className = tipo; $("retoMsg").textContent = texto; };
+
+// ---------- Buscar partidos ----------
 $("buscar").onclick = async () => {
   $("msg").textContent = "Buscando partidos...";
   $("lista").hidden = true;
-  $("resultado").innerHTML = "";
   try {
     const d = await api(`/api/luci?r=partidos&liga=${$("liga").value}&dias=${$("dias").value}`);
     if (!d.partidos.length) { $("msg").textContent = "No hay partidos en ese rango."; return; }
-    $("msg").textContent = `${d.partidos.length} partidos encontrados. Elige uno para analizarlo.`;
+    partidos = {};
+    d.partidos.forEach((p) => (partidos[p.id] = p));
+    $("msg").textContent = `${d.partidos.length} partidos. Elige uno para ver sus picks.`;
     $("lista").innerHTML = d.partidos.map((p) =>
       `<div class="partido"><span>${esc(p.label)}</span>
        <button data-id="${p.id}" data-liga="${p.league_code}">Analizar</button></div>`).join("");
@@ -86,21 +129,151 @@ $("buscar").onclick = async () => {
   }
 };
 
+// ---------- Analizar un partido ----------
 $("lista").onclick = async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
+  const id = b.dataset.id, liga = b.dataset.liga;
+  $("analisis").innerHTML = `<p class="muted">Analizando... puede tardar entre 10 y 40 segundos.</p>`;
   document.querySelectorAll("#lista button").forEach((x) => (x.disabled = true));
-  $("resultado").innerHTML = `<p class="muted">Analizando... puede tardar entre 5 y 30 segundos.</p>`;
   try {
-    const d = await api(`/api/luci?r=analizar&id=${b.dataset.id}&liga=${b.dataset.liga}`);
-    $("resultado").innerHTML = `<section class="card"><h2>${esc(d.match)}</h2></section>
-                                <div class="salida">${d.html}</div>`;
+    const p = await api(`/api/luci?r=picks&id=${id}&liga=${liga}`);
+    const a = await api(`/api/luci?r=analizar&id=${id}&liga=${liga}`);
+    picksPorPartido[id] = p.picks.map((x) => ({ ...x, match_id: Number(id), partido: p.partido, utcDate: p.utcDate }));
+    $("analisis").innerHTML = `
+      <section class="card">
+        <h2>${esc(a.match)}</h2>
+        <h3>Picks (66–70% y cuota ≥ 1.50)</h3>
+        ${renderPicks(id)}
+      </section>
+      <details class="card"><summary>Ver análisis completo</summary><div class="salida">${a.html}</div></details>`;
   } catch (err) {
-    $("resultado").innerHTML = `<p class="err">${esc(err.message)}</p>`;
+    $("analisis").innerHTML = `<p class="err">${esc(err.message)}</p>`;
   } finally {
     document.querySelectorAll("#lista button").forEach((x) => (x.disabled = false));
   }
 };
+
+function renderPicks(id) {
+  const lista = picksPorPartido[id] || [];
+  if (!lista.length) return `<p class="muted">Ningún pick cumple el filtro en este partido.</p>`;
+  return lista.map((p, i) =>
+    `<div class="pick"><span>${esc(p.nombre)} · <b>${p.prob}%</b> · cuota ${p.odd}</span>
+     <button class="sec" data-add="${id}|${i}">Agregar al reto</button></div>`).join("");
+}
+
+$("analisis").onclick = (e) => {
+  const b = e.target.closest("button[data-add]");
+  if (!b) return;
+  const [id, idx] = b.dataset.add.split("|");
+  agregarPaso(id, Number(idx));
+};
+
+// ---------- Reto escalera ----------
+function agregarPaso(id, idx) {
+  const p = picksPorPartido[id][idx];
+  const limite = Number($("pasos").value);
+  if (reto.length >= limite) return mensaje(`El reto ya tiene ${limite} pasos. Quita uno o guarda el reto.`);
+  if (reto.some((x) => x.match_id === p.match_id)) return mensaje("Ese partido ya está en el reto.");
+  const t = new Date(p.utcDate).getTime();
+  const choque = reto.find((x) => Math.abs(new Date(x.utcDate).getTime() - t) < SEPARACION_MS);
+  if (choque) return mensaje(`Se juega muy cerca de ${choque.partido} (menos de 2 horas). Elige otro horario.`);
+  reto.push(p);
+  mensaje("");
+  renderReto();
+}
+
+function quitarPaso(i) {
+  reto.splice(i, 1);
+  renderReto();
+}
+
+function totalesReto() {
+  const prob = reto.reduce((acc, x) => acc * (x.prob / 100), 1) * 100;
+  const cuota = reto.reduce((acc, x) => acc * x.odd, 1);
+  return { prob, cuota };
+}
+
+function renderReto() {
+  const limite = Number($("pasos").value);
+  $("pasosLista").innerHTML = reto.length
+    ? reto.map((x, i) =>
+        `<div class="paso"><span><b>Paso ${i + 1}:</b> ${esc(x.partido)}<br>
+         <small>${esc(x.nombre)} · ${x.prob}% · cuota ${x.odd} · ${fechaLocal(x.utcDate)}</small></span>
+         <button class="sec" data-quitar="${i}">Quitar</button></div>`).join("")
+    : `<p class="muted">Aún no agregas pasos.</p>`;
+
+  const { prob, cuota } = totalesReto();
+  $("totales").innerHTML = reto.length
+    ? `Pasos: ${reto.length}/${limite} · Probabilidad combinada: <b>${prob.toFixed(1)}%</b> · Cuota total: <b>${cuota.toFixed(2)}</b>`
+    : "";
+  $("guardar").disabled = reto.length !== limite;
+}
+
+$("pasosLista").onclick = (e) => {
+  const b = e.target.closest("button[data-quitar]");
+  if (b) quitarPaso(Number(b.dataset.quitar));
+};
+
+$("pasos").onchange = () => {
+  const limite = Number($("pasos").value);
+  if (reto.length > limite) {
+    reto = reto.slice(0, limite);
+    mensaje(`Se quitaron pasos para ajustarse a ${limite}.`, "muted");
+  }
+  renderReto();
+};
+
+$("guardar").onclick = () => {
+  const { prob, cuota } = totalesReto();
+  const lista = JSON.parse(localStorage.getItem(KEY) || "[]");
+  lista.unshift({
+    id: Date.now(),
+    fecha: new Date().toLocaleString("es"),
+    pasos: reto,
+    prob: Number(prob.toFixed(1)),
+    cuota: Number(cuota.toFixed(2)),
+    estado: "pendiente",
+  });
+  localStorage.setItem(KEY, JSON.stringify(lista));
+  reto = [];
+  mensaje("Reto guardado.", "ok");
+  renderReto();
+  renderGuardados();
+};
+
+function renderGuardados() {
+  const lista = JSON.parse(localStorage.getItem(KEY) || "[]");
+  if (!lista.length) {
+    $("guardados").innerHTML = `<p class="muted">Aún no tienes retos guardados.</p>`;
+    return;
+  }
+  $("guardados").innerHTML = lista.map((r) => `
+    <div class="card" style="box-shadow:none;border:1px solid #eee;margin:.5rem 0">
+      <div><small>${esc(r.fecha)}</small> · <b>${esc(r.estado)}</b></div>
+      <div>${r.pasos.map((p, i) => `${i + 1}. ${esc(p.partido)} (${esc(p.nombre)})`).join("<br>")}</div>
+      <div class="totales">Prob. ${r.prob}% · Cuota ${r.cuota}</div>
+      <div class="row">
+        <button class="sec" data-acc="${r.id}|ganado">Ganado</button>
+        <button class="sec" data-acc="${r.id}|perdido">Perdido</button>
+        <button class="sec" data-acc="${r.id}|eliminar">Eliminar</button>
+      </div>
+    </div>`).join("");
+}
+
+$("guardados").onclick = (e) => {
+  const b = e.target.closest("button[data-acc]");
+  if (!b) return;
+  const [id, accion] = b.dataset.acc.split("|");
+  let lista = JSON.parse(localStorage.getItem(KEY) || "[]");
+  if (accion === "eliminar") lista = lista.filter((r) => String(r.id) !== id);
+  else lista.forEach((r) => { if (String(r.id) === id) r.estado = accion; });
+  localStorage.setItem(KEY, JSON.stringify(lista));
+  renderGuardados();
+};
+
+renderReto();
+renderGuardados();
 </script>
 </body>
 </html>

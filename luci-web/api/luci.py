@@ -18,6 +18,9 @@ class handler(BaseHTTPRequestHandler):
             elif ruta == "analizar":
                 payload = luci_web.analizar(int(q.get("id", [""])[0]), q.get("liga", [""])[0])
                 luci_web.responder(self, 200, payload)
+            elif ruta == "picks":
+                payload = luci_web.picks(int(q.get("id", [""])[0]), q.get("liga", [""])[0])
+                luci_web.responder(self, 200, payload)
             else:
                 luci_web.responder(self, 404, {"error": "Ruta no válida"})
         except Exception as e:

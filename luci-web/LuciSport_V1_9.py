@@ -18,6 +18,12 @@ TELEGRAM_CHAT_ID = "7002805722"
 G, Y, R, B, C, W = '\033[92m', '\033[93m', '\033[91m', '\033[94m', '\033[96m', '\033[0m'
 BOLD = '\033[1m'
 
+# --- FILTRO DE RECOMENDACIONES ---
+REC_PROB_MIN = 66          # probabilidad mínima (%)
+REC_PROB_MAX = 70          # probabilidad máxima (%)
+REC_ODD_MIN = 1.50         # cuota mínima (real si existe, justa si no)
+MERCADOS_HEURISTICOS = ("Córners", "Tarjetas", "Tiros", "Remates")  # sin datos reales
+
 # ---------- UTILIDADES ----------
 def color_prob(p):
     if p < 40: return R
@@ -27,6 +33,15 @@ def color_prob(p):
 
 def to_odds(p):
     return round(100 / p, 2) if p > 0 else 0.0
+
+def cumple_recomendacion(nombre, prob, odd_real=0):
+    """True si el pick está entre REC_PROB_MIN y REC_PROB_MAX y su cuota es >= REC_ODD_MIN."""
+    if any(x in nombre for x in MERCADOS_HEURISTICOS):
+        return False
+    if not (REC_PROB_MIN <= prob <= REC_PROB_MAX):
+        return False
+    odd = odd_real if odd_real > 0 else to_odds(prob)
+    return odd >= REC_ODD_MIN
 
 def calcular_stake(p):
     """Stake del 5% al 30% según probabilidad (solo si p >= 60)."""
@@ -192,26 +207,27 @@ def analizar_titan(match):
     # --- CABECERA CONSOLA ---
     print(f"\n{B}{BOLD}╔" + "═" * 70 + "╗")
     print(f"║  LUCI SPORT ANALYSIS: {h_n.upper()} vs {a_n.upper()} ║")
-    print(f"╚" + "═" * 70 + "╝{W}")
+    print("╚" + "═" * 70 + "╝" + W)
 
     # --- RECOLECCIÓN DE RECOMENDACIONES (p >=60 y odd_calc >=1.50) ---
     recomendaciones = []
 
     def agregar_recomendacion(nombre, prob, odd_real=0):
+        if not cumple_recomendacion(nombre, prob, odd_real):
+            return
         odd_calc = to_odds(prob)
-        if prob >= 60 and odd_calc >= 1.50:
-            valor = (odd_real > odd_calc) if odd_real > 0 else False
-            stake = calcular_stake(prob)
-            if valor:
-                stake = min(30, stake + 5)
-            recomendaciones.append({
-                "nombre": nombre,
-                "prob": prob,
-                "odd_calc": odd_calc,
-                "stake": stake,
-                "valor": valor,
-                "odd_real": odd_real
-            })
+        valor = (odd_real > odd_calc) if odd_real > 0 else False
+        stake = calcular_stake(prob)
+        if valor:
+            stake = min(30, stake + 5)
+        recomendaciones.append({
+            "nombre": nombre,
+            "prob": prob,
+            "odd_calc": odd_calc,
+            "stake": stake,
+            "valor": valor,
+            "odd_real": odd_real
+        })
 
     # --- BLOQUE 1: 1X2 ---
     print(f"\n{C}{BOLD}⚽ MERCADOS PRINCIPALES (1X2 & DC){W}")
@@ -550,6 +566,7 @@ def backtest_v2(cid, n_partidos=40):
     print(f"  Brier 1X2: {brier / evaluados:.4f}  (azar = 0.6667, menor es mejor)")
     print(f"  Log-loss : {ll / evaluados:.4f}  (azar = 1.0986)")
     print(f"  Acierto del favorito: {aciertos / evaluados:.1%}")
+
 # ---------- PROGRAMA PRINCIPAL ----------
 def main():
     while True:
