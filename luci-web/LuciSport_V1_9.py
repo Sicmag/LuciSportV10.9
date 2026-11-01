@@ -11,7 +11,7 @@ import difflib  # Para comparar nombres de equipos (The Odds API)
 
 # ---------- CONFIGURACIÓN ----------
 API_KEY_FOOTBALL = "1e5c3ffbc5bb41c7a564388729255308"  # Football-Data.org
-API_KEY_ODDS = os.getenv("ODDS_API_KEY", "TU_API_KEY_DE_THE_ODDS_API_AQUI")       # Opcional, para cuotas reales
+API_KEY_ODDS = os.getenv("ODDS_API_KEY", "5f3d354ec2b4ba447503b213222a752b5b42656e")       # Opcional, para cuotas reales
 HEADERS = {'X-Auth-Token': API_KEY_FOOTBALL}
 
 # --- CONFIGURACIÓN TELEGRAM ---
@@ -23,9 +23,15 @@ G, Y, R, B, C, W = '\033[92m', '\033[93m', '\033[91m', '\033[94m', '\033[96m', '
 BOLD = '\033[1m'
 
 # --- FILTRO DE RECOMENDACIONES ---
+<<<<<<< HEAD
 REC_PROB_MIN = 75          # probabilidad mínima (%)
 REC_PROB_MAX = 79          # probabilidad máxima (%)
 REC_ODD_MIN = 1.01          # sin límite práctico de cuota (solo cuotas válidas)         # cuota mínima (real si existe, justa si no)
+=======
+REC_PROB_MIN = 60          # probabilidad mínima (%)
+REC_PROB_MAX = 70          # probabilidad máxima (%)
+REC_ODD_MIN = 1.40         # cuota mínima (real si existe, justa si no)
+>>>>>>> 
 MERCADOS_HEURISTICOS = ("Córners", "Tarjetas", "Tiros", "Remates")  # sin datos reales
 INCLUIR_HEURISTICOS = False  # True para incluir córners/tarjetas/tiros en los picks
 

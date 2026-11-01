@@ -7,7 +7,11 @@
 <style>
   :root {
     --bg: #f3f5f9; --card: #ffffff; --texto: #1c2430; --suave: #6b7480;
+<<<<<<< HEAD
     --azul: #2563eb; --verde: #15803d; --borde: #e5e9f0; --radio: 14px;
+=======
+    --azul: #2563eb; --verde: #15803d; --ambar: #b45309; --borde: #e5e9f0; --radio: 14px;
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -22,6 +26,7 @@
   label { display: flex; flex-direction: column; font-size: .8rem; color: var(--suave); gap: .3rem; }
   select, input, button { font: inherit; min-height: 44px; padding: .6rem .7rem; border-radius: 10px;
                           border: 1px solid var(--borde); background: #fff; color: var(--texto); }
+<<<<<<< HEAD
   input[type=checkbox] { min-height: 22px; width: 22px; padding: 0; margin: 0; }
   button { cursor: pointer; background: var(--azul); color: #fff; border: none; font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
@@ -34,6 +39,17 @@
   .partido { display: flex; align-items: center; gap: .75rem; padding: .7rem 0; border-bottom: 1px solid var(--borde); }
   .partido:last-child { border-bottom: none; }
   .partido .info { flex: 1; min-width: 0; }
+=======
+  button { cursor: pointer; background: var(--azul); color: #fff; border: none; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.sec { background: #eef2ff; color: var(--azul); }
+  button.peq { min-height: 36px; padding: .35rem .6rem; font-size: .85rem; width: 100%; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1rem; align-items: start; }
+  .sticky { position: sticky; top: 1rem; }
+  .partido { display: flex; justify-content: space-between; align-items: center; gap: .75rem;
+             padding: .7rem 0; border-bottom: 1px solid var(--borde); }
+  .partido:last-child { border-bottom: none; }
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   .nombres { font-weight: 600; line-height: 1.3; }
   .fecha { font-size: .8rem; color: var(--suave); }
   .vivo { background: #fee2e2; color: #b91c1c; font-size: .72rem; padding: .1rem .45rem; border-radius: 999px; margin-right: .3rem; }
@@ -63,11 +79,19 @@
   .acciones button { flex: 1; min-width: 90px; }
   footer { text-align: center; color: var(--suave); font-size: .8rem; padding: 1rem; }
 
+<<<<<<< HEAD
+=======
+  /* Tablet */
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     .sticky { position: static; }
     .picks { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   }
+<<<<<<< HEAD
+=======
+  /* Teléfono */
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   @media (max-width: 600px) {
     header { padding: 1rem; }
     header h1 { font-size: 1.3rem; }
@@ -77,10 +101,16 @@
     .controles > label:first-child { grid-column: 1 / -1; }
     .controles > button { grid-column: 1 / -1; }
     .picks { grid-template-columns: 1fr; }
+<<<<<<< HEAD
     .partido { align-items: flex-start; }
     .partido button { flex-shrink: 0; }
     .partido-head h2 { font-size: 1.05rem; }
     .combo-bar button { width: 100%; }
+=======
+    .partido { flex-direction: column; align-items: stretch; }
+    .partido button { width: 100%; }
+    .partido-head h2 { font-size: 1.05rem; }
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   }
   @media (max-width: 380px) {
     .controles { grid-template-columns: 1fr; }
@@ -90,7 +120,11 @@
 <body>
 <header>
   <h1>⚽ LuciSport</h1>
+<<<<<<< HEAD
   <p>Picks con probabilidad 75–79%, sin límite de cuota</p>
+=======
+  <p>Picks con probabilidad 60–70% y cuota de al menos 1.40</p>
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
 </header>
 
 <main>
@@ -162,7 +196,10 @@ const MAX_COMBO = 3;
 let partidos = {};
 let picksPorPartido = {};
 let reto = [];
+<<<<<<< HEAD
 let opcionesCombo = [];
+=======
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
 
 async function api(url) {
   const r = await fetch(url);
@@ -184,6 +221,7 @@ $("buscar").onclick = async () => {
     if (!d.partidos.length) { $("msg").textContent = "No hay partidos en ese rango."; return; }
     partidos = {};
     d.partidos.forEach((p) => (partidos[p.id] = p));
+<<<<<<< HEAD
     $("msg").textContent = `${d.partidos.length} partidos. Toca "Ver picks" o marca 2–3 para una combinada.`;
     $("lista").innerHTML = `
       <h2 style="margin-top:0">Partidos</h2>
@@ -204,6 +242,17 @@ $("buscar").onclick = async () => {
         </div>
         <button data-id="${p.id}" data-liga="${p.league_code}">Ver picks</button>
       </div>`).join("");
+=======
+    $("msg").textContent = `${d.partidos.length} partidos. Toca uno para ver sus picks.`;
+    $("lista").innerHTML = `<h2 style="margin-top:0">Partidos</h2>` + d.partidos.map((p) =>
+      `<div class="partido">
+         <div>
+           <div class="nombres">${p.label.includes("[LIVE]") ? '<span class="vivo">EN VIVO</span>' : ""}${esc(p.label.replace(/\s*\(.*\)$/, "").replace("[PRE] ", "").replace("[LIVE] ", ""))}</div>
+           <div class="fecha">${esc(fechaLocal(p.utcDate))}</div>
+         </div>
+         <button data-id="${p.id}" data-liga="${p.league_code}">Ver picks</button>
+       </div>`).join("");
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
     $("lista").hidden = false;
     actualizarSeleccion();
   } catch (e) {
@@ -211,6 +260,7 @@ $("buscar").onclick = async () => {
   }
 };
 
+<<<<<<< HEAD
 // ---------- Selección para combinada ----------
 $("lista").onchange = (e) => {
   if (!e.target.classList.contains("sel")) return;
@@ -227,6 +277,9 @@ function actualizarSeleccion() {
 }
 
 // ---------- Clicks en la lista ----------
+=======
+// ---------- Picks de un partido ----------
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
 $("lista").onclick = async (e) => {
   if (e.target.id === "btnCombo") return crearCombinada();
   const b = e.target.closest("button[data-id]");
@@ -247,6 +300,7 @@ $("lista").onclick = async (e) => {
   }
 };
 
+<<<<<<< HEAD
 // ---------- Combinada ----------
 async function crearCombinada() {
   const sel = [...document.querySelectorAll("#lista input.sel:checked")];
@@ -350,6 +404,31 @@ function renderPicks(id, partido, utc) {
 
 function pickHtml(id, p) {
   const clase = p.prob >= 78 ? "p70" : p.prob >= 76 ? "p65" : "p60";
+=======
+function renderPicks(id, partido, utc) {
+  const lista = picksPorPartido[id] || [];
+  const orden = ["Resultado", "Goles", "Córners", "Tarjetas", "Tiros y remates", "Otros"];
+  const grupos = {};
+  lista.forEach((p, i) => { (grupos[p.mercado] = grupos[p.mercado] || []).push({ ...p, i }); });
+
+  const cuerpo = lista.length
+    ? orden.filter((g) => grupos[g]).map((g) => `
+        <div class="grupo"><h3>${g}</h3>
+          <div class="picks">${grupos[g].map((p) => pickHtml(id, p)).join("")}</div>
+        </div>`).join("")
+    : `<p class="muted">Ningún pick cumple el filtro en este partido.</p>`;
+
+  return `<div class="partido-head">
+            <h2>${esc(partido)}</h2>
+            <div class="fecha">${esc(fechaLocal(utc))} · ${lista.length} picks</div>
+          </div>
+          <p class="regla">Filtro: probabilidad 60–70% y cuota ≥ 1.40</p>
+          ${cuerpo}`;
+}
+
+function pickHtml(id, p) {
+  const clase = p.prob >= 68 ? "p70" : p.prob >= 64 ? "p65" : "p60";
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   const etiqueta = p.fuente === "real" ? "cuota real" : "cuota justa";
   return `<div class="pick ${clase}">
     <div class="pick-top">
@@ -366,8 +445,11 @@ function pickHtml(id, p) {
 }
 
 $("detalle").onclick = (e) => {
+<<<<<<< HEAD
   const u = e.target.closest("button[data-usar]");
   if (u) return usarCombinada(Number(u.dataset.usar));
+=======
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
   const b = e.target.closest("button[data-add]");
   if (!b) return;
   const [id, idx] = b.dataset.add.split("|");
@@ -384,9 +466,16 @@ function agregarAlReto(p) {
   if (reto.some((x) => x.match_id === p.match_id)) return "ese partido ya está en el reto";
   const t = new Date(p.utcDate).getTime();
   const choque = reto.find((x) => Math.abs(new Date(x.utcDate).getTime() - t) < SEPARACION_MS);
+<<<<<<< HEAD
   if (choque) return `se juega muy cerca de ${choque.partido} (menos de 2 horas)`;
   reto.push(p);
   return null;
+=======
+  if (choque) return mensaje(`Se juega muy cerca de ${choque.partido} (menos de 2 horas).`);
+  reto.push(p);
+  mensaje("");
+  renderReto();
+>>>>>>> 5f3d354ec2b4ba447503b213222a752b5b42656e
 }
 
 function totalesReto() {
