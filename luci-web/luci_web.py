@@ -1,6 +1,7 @@
 """Puente web: ejecuta LuciSport_V1_9.py tal cual y captura su salida de consola."""
 import contextlib
 import html
+import itertools
 import importlib.util
 import io
 import json
@@ -106,31 +107,102 @@ def analizar(match_id, cid):
     }
 
 
-def picks(match_id, cid):
-    """Picks del partido que cumplen el filtro (sin mercados heurísticos)."""
-    r = _obtener_partido(match_id, cid)
-    h, a = r["homeTeam"], r["awayTeam"]
-    h_s = luci.get_deep_data_v2(h["id"])
-    a_s = luci.get_deep_data_v2(a["id"])
+def categoria(nombre):
+    """Agrupa un pick por tipo de mercado para mostrarlo ordenado en la web."""
+    if "Córners" in nombre:
+        return "Córners"
+    if "Tarjetas" in nombre:
+        return "Tarjetas"
+    if "Tiros" in nombre or "Remates" in nombre:
+        return "Tiros y remates"
+    if "Goles" in nombre or nombre.startswith(("Más de", "Menos de", "Ambos")):
+        return "Goles"
+    if nombre.startswith(("Gana ", "1X ", "X2 ")):
+        return "Resultado"
+    return "Otros"
 
-    # Temporalmente quitamos el tope de recomendaciones para no perder picks de 66-70%
+
+def picks(match_id, cid):
+    """Picks del partido: solo recomendaciones que cumplen el filtro (prob. 60-70%, cuota >= 1.40)."""
+    r = _obtener_partido(match_id, cid)
     tope_original = luci.MAX_RECS_V2
-    luci.MAX_RECS_V2 = 1000
+    luci.MAX_RECS_V2 = 1000  # que el tope V2 no oculte picks válidos
     try:
         with contextlib.redirect_stdout(io.StringIO()):
-            recs = luci.bloque_v2_mercados(h["name"], a["name"], h_s, a_s)
+            luci.analizar_titan(r)
     finally:
         luci.MAX_RECS_V2 = tope_original
 
     seleccion = []
-    for nombre, prob in recs:
-        if luci.cumple_recomendacion(nombre, prob):
-            seleccion.append({"nombre": nombre, "prob": prob, "odd": luci.to_odds(prob)})
+    for rec in luci.ULTIMAS_RECOMENDACIONES:
+        real = rec.get("odd_real", 0)
+        seleccion.append({
+            "nombre": rec["nombre"],
+            "mercado": categoria(rec["nombre"]),
+            "prob": rec["prob"],
+            "odd": real if real > 0 else rec["odd_calc"],
+            "fuente": "real" if real > 0 else "justa",
+        })
     return {
-        "partido": f"{h['name']} vs {a['name']}",
+        "partido": f"{r['homeTeam']['name']} vs {r['awayTeam']['name']}",
         "utcDate": r.get("utcDate", ""),
         "picks": sorted(seleccion, key=lambda x: x["prob"], reverse=True),
     }
+
+
+def combinada(pares, objetivo=None):
+    """Combinadas a partir de los partidos elegidos (2 o 3).
+    Con objetivo: las combinaciones cuya cuota total está más cerca de la cuota deseada.
+    Sin objetivo: las de mayor probabilidad. Devuelve hasta 3 opciones."""
+    if not 2 <= len(pares) <= 3:
+        raise ValueError("Elige entre 2 y 3 partidos")
+    if objetivo is not None and not (1.01 <= objetivo <= 100):
+        raise ValueError("La cuota deseada debe estar entre 1.01 y 100")
+
+    candidatos, nombres = [], []
+    for mid, cid in pares:
+        r = _obtener_partido(mid, cid)
+        nombre_p = f"{r['homeTeam']['name']} vs {r['awayTeam']['name']}"
+        nombres.append(nombre_p)
+        opciones = []
+        for x in luci.recomendaciones_partido(r):
+            real = x.get("odd_real", 0)
+            opciones.append({
+                "match_id": int(mid), "partido": nombre_p, "utcDate": r.get("utcDate", ""),
+                "nombre": x["nombre"], "prob": x["prob"],
+                "odd": real if real > 0 else x["odd_calc"],
+                "fuente": "real" if real > 0 else "justa",
+            })
+        opciones.sort(key=lambda o: (-o["prob"], -o["odd"]))
+        candidatos.append(opciones[:12])
+
+    sin_pick = [nombres[i] for i, c in enumerate(candidatos) if not c]
+    if sin_pick:
+        return {"opciones": [], "sin_pick": sin_pick, "objetivo": objetivo}
+
+    combos = []
+    for combo in itertools.product(*candidatos):
+        prob, cuota = 1.0, 1.0
+        for p in combo:
+            prob *= p["prob"] / 100
+            cuota *= p["odd"]
+        combos.append({"pasos": list(combo), "prob": round(prob * 100, 1), "cuota": round(cuota, 2)})
+
+    if objetivo is None:
+        combos.sort(key=lambda c: (-c["prob"], -c["cuota"]))
+    else:
+        combos.sort(key=lambda c: (abs(c["cuota"] - objetivo), -c["prob"]))
+
+    opciones, vistos = [], set()
+    for c in combos:
+        clave = tuple((p["match_id"], p["nombre"]) for p in c["pasos"])
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        opciones.append(c)
+        if len(opciones) == 3:
+            break
+    return {"opciones": opciones, "sin_pick": [], "objetivo": objetivo}
 
 
 def responder(handler, codigo, payload, cache=False):

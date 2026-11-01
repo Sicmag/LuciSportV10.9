@@ -21,6 +21,16 @@ class handler(BaseHTTPRequestHandler):
             elif ruta == "picks":
                 payload = luci_web.picks(int(q.get("id", [""])[0]), q.get("liga", [""])[0])
                 luci_web.responder(self, 200, payload)
+            elif ruta == "combinada":
+                # partidos=ID:LIGA,ID:LIGA  y opcionalmente objetivo=2.50
+                pares = []
+                for par in q.get("partidos", [""])[0].split(","):
+                    if ":" in par:
+                        mid, liga = par.split(":", 1)
+                        pares.append((int(mid), liga))
+                obj = q.get("objetivo", [""])[0]
+                objetivo = float(obj) if obj else None
+                luci_web.responder(self, 200, luci_web.combinada(pares, objetivo))
             else:
                 luci_web.responder(self, 404, {"error": "Ruta no válida"})
         except Exception as e:

@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import re
 import requests
@@ -9,7 +11,7 @@ import difflib  # Para comparar nombres de equipos (The Odds API)
 
 # ---------- CONFIGURACIÓN ----------
 API_KEY_FOOTBALL = "1e5c3ffbc5bb41c7a564388729255308"  # Football-Data.org
-API_KEY_ODDS = os.getenv("ODDS_API_KEY", "4717a35d0881dfe407379ce367a992a6")       # Opcional, para cuotas reales
+API_KEY_ODDS = os.getenv("ODDS_API_KEY", "TU_API_KEY_DE_THE_ODDS_API_AQUI")       # Opcional, para cuotas reales
 HEADERS = {'X-Auth-Token': API_KEY_FOOTBALL}
 
 # --- CONFIGURACIÓN TELEGRAM ---
@@ -21,10 +23,11 @@ G, Y, R, B, C, W = '\033[92m', '\033[93m', '\033[91m', '\033[94m', '\033[96m', '
 BOLD = '\033[1m'
 
 # --- FILTRO DE RECOMENDACIONES ---
-REC_PROB_MIN = 66          # probabilidad mínima (%)
-REC_PROB_MAX = 100          # probabilidad máxima (%)
-REC_ODD_MIN = 1.40         # cuota mínima (real si existe, justa si no)
+REC_PROB_MIN = 75          # probabilidad mínima (%)
+REC_PROB_MAX = 79          # probabilidad máxima (%)
+REC_ODD_MIN = 1.01          # sin límite práctico de cuota (solo cuotas válidas)         # cuota mínima (real si existe, justa si no)
 MERCADOS_HEURISTICOS = ("Córners", "Tarjetas", "Tiros", "Remates")  # sin datos reales
+INCLUIR_HEURISTICOS = False  # True para incluir córners/tarjetas/tiros en los picks
 
 # Recomendaciones del último análisis (la usa la web para los picks)
 ULTIMAS_RECOMENDACIONES = []
@@ -41,7 +44,7 @@ def to_odds(p):
 
 def cumple_recomendacion(nombre, prob, odd_real=0):
     """True si el pick está entre REC_PROB_MIN y REC_PROB_MAX y su cuota es >= REC_ODD_MIN."""
-    if any(x in nombre for x in MERCADOS_HEURISTICOS):
+    if not INCLUIR_HEURISTICOS and any(x in nombre for x in MERCADOS_HEURISTICOS):
         return False
     if not (REC_PROB_MIN <= prob <= REC_PROB_MAX):
         return False
@@ -184,35 +187,32 @@ LIGAS = {
 }
 
 # ---------- EXTRACTOR DE PICKS PARA COMBINADAS ----------
+def recomendaciones_partido(match):
+    """Recomendaciones del partido que cumplen el filtro (60-70%, cuota >= 1.40).
+    Ejecuta el análisis en silencio: no imprime y no envía mensajes a Telegram."""
+    global enviar_a_telegram, MAX_RECS_V2
+    envio_original, tope_original = enviar_a_telegram, MAX_RECS_V2
+    enviar_a_telegram = lambda *a, **k: None
+    MAX_RECS_V2 = 1000
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            analizar_titan(match)
+        return list(ULTIMAS_RECOMENDACIONES)
+    finally:
+        enviar_a_telegram, MAX_RECS_V2 = envio_original, tope_original
+
+def mejor_pick_partido(match):
+    """Recomendación de mayor probabilidad (desempate: cuota más alta). None si no hay ninguna."""
+    recs = recomendaciones_partido(match)
+    if not recs:
+        return None
+    return max(recs, key=lambda r: (r['prob'], r['odd_real'] or r['odd_calc']))
+
 def extraer_picks_gold(match):
-    """Devuelve picks con probabilidad >=60% y cuota calculada >=1.50."""
-    h_s = get_deep_data(match['homeTeam']['id'])
-    a_s = get_deep_data(match['awayTeam']['id'])
-    exH = ((h_s['gf'] + a_s['gc']) / 2) * 1.10
-    exA = ((a_s['gf'] + h_s['gc']) / 2) * 0.95
-    total_ex = exH + exA
-
-    pL = round(sum(poisson(exH, i) * poisson(exA, j) for i in range(8) for j in range(8) if i > j) * 100)
-    pV = round(sum(poisson(exH, i) * poisson(exA, j) for i in range(8) for j in range(8) if j > i) * 100)
-    pE = 100 - pL - pV
-    o15 = round((1 - sum(poisson(total_ex, i) for i in range(2))) * 100)
-    btts = round(((1 - poisson(exH, 0)) * (1 - poisson(exA, 0))) * 100)
-
-    posibles = [
-        (f"Gana {match['homeTeam']['name']}", pL),
-        (f"Gana {match['awayTeam']['name']}", pV),
-        (f"Gana o Empate {match['homeTeam']['name']}", pL + pE),
-        (f"Gana o Empate {match['awayTeam']['name']}", pV + pE),
-        ("Más de 1.5 Goles", o15),
-        ("Ambos Marcan", btts)
-    ]
-
-    picks = []
-    for nombre, prob in posibles:
-        odd = to_odds(prob)
-        if prob >= 60 and odd >= 1.50:
-            picks.append({"n": nombre, "p": prob, "o": odd, "c": "Goles" if "Goles" in nombre else "1X2/DC"})
-    return picks
+    """Picks del partido en el formato que usa la combinada de la terminal."""
+    return [{"n": r['nombre'], "p": r['prob'], "o": r['odd_real'] or r['odd_calc'],
+             "c": "Goles" if "Goles" in r['nombre'] else "1X2/DC"}
+            for r in recomendaciones_partido(match)]
 
 # ---------- ANALIZADOR PRINCIPAL (SIN MULTIGOL) ----------
 def analizar_titan(match):
